@@ -9,10 +9,6 @@ library(dplyr)
 # increase max R-Shiny user-input file size from 5 to 30 MB
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
 
-#import data
-data <- read.csv("datasets/curated/NOAAGlobalTemp/testdat.csv")
-#data <- read.csv("quakes.csv")
-
 # define fonts for plot
 f1 <- list(family = "Arial, sans-serif",
            size = 24,
@@ -36,17 +32,19 @@ m <- list(
 )
 
 # the ui object has all the information for the user-interface
-ui <- fluidPage(
-  h1("Viral Space Time"),
-  theme = shinytheme("sandstone"),
-  leafletOutput("mymap", height=600),
-  absolutePanel(top = 160, left = 80,
-                checkboxInput("heat", "Heatmap", FALSE)
-  )
+ui <-(
+  navbarPage("Viral Space Time", id="main",
+             tabPanel("Map", leafletOutput("mymap", height=600), 
+                      absolutePanel(top = 160, left = 80,checkboxInput("heat", "Heatmap", FALSE)
+                      )),
+             tabPanel("Overview",includeMarkdown("readme.md")))
 )
 
 
 server <- function(input, output, session) {
+  #import data
+  data <- read.csv("datasets/curated/NOAAGlobalTemp/testdat.csv")
+  
   #define the color pallate for the magnitidue of the earthquake
   pal <- colorNumeric(
     palette = c('blue', 'deep skyblue', 'cyan', 'orange red', 'red', 'dark red'),
