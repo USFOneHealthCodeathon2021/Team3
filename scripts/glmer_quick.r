@@ -17,7 +17,10 @@ pdf(file.path(getwd(),'outputs','quick_alr','rates.pdf'))
 hist(rates,100,main='Rate of evolution')
 dev.off()
 
-covariate <- rnorm(length(phy_time$edge.length))
+noaa_preds <- read.table(file.path(getwd(),'outputs/gp/gp_predictions_NOAA.txt'),sep='\t', row.names=NULL, header=TRUE)
+covariate <- apply(alllatlon[-(length(phy_divergence$edge.length)+1),c(3,2)],1, function(x) noaa_preds[apply(noaa_preds[,2:3],1,function(y) all(y == x)), 1])
+
+#covariate <- rnorm(length(phy_time$edge.length))
 
 dat <- as.data.frame(cbind(cbind(phy_divergence$edge.length, log(phy_time$edge.length)), covariate))
 colnames(dat) <- c('div','time','co')
@@ -26,9 +29,13 @@ res <- glmer(div ~ co + (1|time), data = dat, family='poisson')
 summary(res)
 
 pdf(file.path(getwd(),'outputs','quick_alr','mutations_vs_covariate.pdf'))
-plot(dat$co,dat$div, xlab = 'Covariate', ylab = 'Number of mutations')
+plot(dat$co,dat$div, xlab = 'NOAA Temperature Anomalies Jan 2017', ylab = 'Number of mutations')
 dev.off()
 
+pdf(file.path(getwd(),'outputs','quick_alr','log_mutations_vs_covariate.pdf'))
+plot(dat$co,log(dat$div), xlab = 'NOAA Temperature Anomalies Jan 2017', ylab = 'Log of number of mutations')
+dev.off()
+                                                                                                             
 pdf(file.path(getwd(),'outputs','quick_alr','mutations_vs_time.pdf'))
 plot(exp(dat$time),dat$div, xlab = 'Time', ylab = 'Number of mutations')
 dev.off()
