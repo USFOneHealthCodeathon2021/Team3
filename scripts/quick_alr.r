@@ -25,3 +25,4 @@ latlon_internal <- t(sapply(unique(phy$edge[,1]), function(x) surfacecentroid(ma
 alllatlon <- rbind(latlon_tips,latlon_internal)
                             
 write.table(alllatlon,file=file.path(getwd(),'outputs','quick_alr','latlon_north_america_phy.txt'),sep='\t',quote=FALSE,row.names=FALSE)
+write.tree(phy,file=file.path(getwd(),'outputs','quick_alr','phy_filtered.newick'))
