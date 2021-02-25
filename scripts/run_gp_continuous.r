@@ -65,6 +65,8 @@ system(sampling_command)
 
 setwd(wd)
 stanfit <- read_stan_csv(file.path(output_prefix, 'samples.txt'))
+check_hmc_diagnostics(stanfit)
+summary(stanfit)
                         
 y2 <- apply(extract(stanfit, pars='y2')[[1]],2,mean)
 noaa_predictions <- cbind(y2,predictLatLon)
