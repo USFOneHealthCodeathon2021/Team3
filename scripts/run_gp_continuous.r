@@ -58,5 +58,10 @@ print(sampling_command)
 print(date())
 system(sampling_command)
 
-#setwd(wd)
-#stanfit <- read_stan_csv(file.path(output_prefix, 'samples.txt'))
+setwd(wd)
+stanfit <- read_stan_csv(file.path(output_prefix, 'samples.txt'))
+                        
+y2 <- apply(extract(stanfit, pars='y2')[[1]],2,mean)
+noaa_predictions <- cbind(y2,randomLatLon)
+                       
+write.table(noaa_predictions, file=file.path(output_prefix,'gp_predictions_NOAA.txt'), sep='\t', quote=FALSE, row.names=FALSE)
