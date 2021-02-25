@@ -10,6 +10,8 @@ run_gp_continuous.r - estimate value of a continuous variable at arbitrary point
 
 quick_alr.r - association location strings from NextStrain phylogenetic tips with GPS coordinates, then estimate ancestral locations of internal nodes in phylogeny with simple assumption - the centroid location of a polygon formed by all descendant tips
 
+glmer_quick.r - simple statistical test for assocation between number of mutations and corresponding covariates
+
 2/24/2021 : 4:30 PM
                                     Samuel Coleman uploaded the inital version of north-american-data-analysis
     The purpose of this file is to analyze data from NextStrain regarding the ongoing Covid Pandemic within North America. This script isolates the Covid sequences from NextStrain that have location data within their metadata.
