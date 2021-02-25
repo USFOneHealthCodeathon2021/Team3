@@ -8,7 +8,7 @@ run_alr.r - estimate gps coordinates of ancestral sequences in a phylogeny based
 
 run_gp_continuous.r - estimate value of a continuous variable at arbitrary points on the globe based on observations of that variable at other points on the globe
 
-
+quick_alr.r - association location strings from NextStrain phylogenetic tips with GPS coordinates, then estimate ancestral locations of internal nodes in phylogeny with simple assumption - the centroid location of a polygon formed by all descendant tips
 
 2/24/2021 : 4:30 PM
                                     Samuel Coleman uploaded the inital version of north-american-data-analysis
