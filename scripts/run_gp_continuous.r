@@ -27,14 +27,19 @@ sampling_command <- paste(paste0('./', model_name),
 testdat <- read.table(file.path(wd, 'datasets/curated/NOAAGlobalTemp/testdat.txt'),sep='\t',header=T)
 
 N <- nrow(testdat)
-                       
-N2 <- 100
-randomCartesian <- t(apply(matrix(rnorm(N2*3), nrow=N2), 1, function(x) x / sqrt(sum(x^2))))                   
-randomPolar <- t(apply(randomCartesian, 1, function(x) unlist(DescTools:::CartToSph(x[1],x[2],x[3]))))                       
-randomLatLon <- DescTools:::RadToDeg(randomPolar[,2:3])
-colnames(randomLatLon) <- colnames(testdat)[1:2]
 
-d2 <- geosphere:::distm(rbind(testdat[,c(2,1)],randomLatLon[,c(2,1)]), fun = function(x,y) geosphere:::distGeo(x,y,a=1))
+alllatlon <- read.table(file.path(getwd(),'outputs','quick_alr','latlon_north_america_phy.txt'), sep='\t',quote='',header=TRUE,row.names=NULL)
+predictLatLon <- unique(alllatlon[,c(3,2)])
+N2 <- nrow(randomLatLon)
+
+#N2 <- 100
+#randomCartesian <- t(apply(matrix(rnorm(N2*3), nrow=N2), 1, function(x) x / sqrt(sum(x^2))))                   
+#randomPolar <- t(apply(randomCartesian, 1, function(x) unlist(DescTools:::CartToSph(x[1],x[2],x[3]))))                       
+#predictLatLon <- DescTools:::RadToDeg(randomPolar[,2:3])
+
+colnames(predictLatLon) <- colnames(testdat)[1:2]
+
+d2 <- geosphere:::distm(rbind(testdat[,c(2,1)],predictLatLon[,c(2,1)]), fun = function(x,y) geosphere:::distGeo(x,y,a=1))
 
 y_norm <- testdat[,3] / sd(testdat[,3])                       
                         
@@ -62,6 +67,6 @@ setwd(wd)
 stanfit <- read_stan_csv(file.path(output_prefix, 'samples.txt'))
                         
 y2 <- apply(extract(stanfit, pars='y2')[[1]],2,mean)
-noaa_predictions <- cbind(y2,randomLatLon)
+noaa_predictions <- cbind(y2,predictLatLon)
                        
 write.table(noaa_predictions, file=file.path(output_prefix,'gp_predictions_NOAA.txt'), sep='\t', quote=FALSE, row.names=FALSE)
