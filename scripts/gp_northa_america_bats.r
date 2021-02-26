@@ -6,12 +6,12 @@ library(rstan)
 wd <- getwd()
 output_prefix <- file.path(wd,'outputs/gp')
 model_dir <- file.path(wd, 'models')
-model_name <- 'gp_continuous'
-dataset_name <- 'bats'
+model_name <- 'gp_poisson'
+dataset_name <- 'bats_poisson'
 
 sampling_command <- paste(paste0('./', model_name),
-                paste0('data file=', file.path(output_prefix, 'data.json')),
-                paste0('init=', file.path(output_prefix, 'inits.json')),
+                paste0('data file=', file.path(output_prefix, paste0(dataset_name,'_data.json'))),
+                paste0('init=', file.path(output_prefix, paste0(dataset_name,'_inits.json'))),
                 #'init=0',
                 'output',
                 paste0('file=', file.path(output_prefix, paste0('samples_',dataset_name,'.txt'))),
@@ -41,14 +41,15 @@ colnames(predictLatLon) <- c('Lat','Lon')
 
 d2 <- geosphere:::distm(rbind(dat[,c('Lon','Lat')],predictLatLon[,c(2,1)]), fun = function(x,y) geosphere:::distGeo(x,y,a=1))
 
-y_norm <- dat$Count / sd(dat$Count)                       
+prior_data_scale <- sd(log(dat$Count[dat$Count>0]))                       
                         
 data <- list(N = N,
              d = d2[1:N,1:N],
              prior_scale = mean(d2[lower.tri(d2)]),
              N2 = N2,
              d2 = d2[(N+1):(N+N2),],
-             y = y_norm)
+             y = dat$Count,
+             prior_data_scale = prior_data_scale)
 
 init <- list(rho_raw=0.1,alpha=1,sigma=1)
 
@@ -71,4 +72,10 @@ summary(stanfit)
 y2 <- apply(extract(stanfit, pars='y2')[[1]],2,mean)
 bats_predictions <- cbind(y2,predictLatLon)
                        
-write.table(bats_predictions, file=file.path(output_prefix,'gp_predictions_bats.txt'), sep='\t', quote=FALSE, row.names=FALSE)
+write.table(bats_predictions, file=file.path(output_prefix, paste0('gp_predictions_',dataset_name,'.txt')), sep='\t', quote=FALSE, row.names=FALSE)
+                        
+y_log_predicted <- apply(extract(stanfit, pars='y2')[[1]],2,mean)
+bats_predictions <- cbind(y2,predictLatLon)
+                       
+write.table(bats_predictions, file=file.path(output_prefix, paste0('gp_predictions_',dataset_name,'.txt')), sep='\t', quote=FALSE, row.names=FALSE)
+
