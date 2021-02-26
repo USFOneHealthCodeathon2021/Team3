@@ -112,13 +112,13 @@ server <- function(input, output, session) {
   
   observe({
     proxy <- leafletProxy("mymap", data = data)
-    proxy %>% clearMarkers() 
+    proxy %>% clearMarkers()  %>% clearControls()
     if (input$heat) {
       proxy %>% addHeatmap(lng=~LON-270, lat=~LAT, intensity = ~mag, blur =  70, max = 10, radius = 40) %>%
         leaflet::addLegend("bottomright", pal = pal, values = ~mag)
     }
     else{
-      proxy %>% clearHeatmap() 
+      proxy %>% clearHeatmap() %>% clearControls()
     }
   })
   
