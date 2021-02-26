@@ -9,7 +9,7 @@ model_name <- 'alr'
 
 sampling_command <- paste(paste0('./', model_name),
                 paste0('data file=', file.path(output_prefix, 'data.json')),
-                #paste0('init=', file.path(output_prefix, 'inits.json')),
+                paste0('init=', file.path(output_prefix, 'inits.json')),
                 'output',
                 paste0('file=', file.path(output_prefix, 'samples.txt')),
                 paste0('refresh=', 100),
@@ -25,15 +25,20 @@ sampling_command <- paste(paste0('./', model_name),
       
 phy <- read.tree(file.path(getwd(),'outputs','quick_alr','phy_filtered.newick'))
 latlon_unique <- read.table(file.path(getwd(),'datasets','curated','NextStrain','latlon_north_america.txt'),sep='\t',header=TRUE)
-dat <- read.table(file.path(getwd(),'datasets','curated','NextStrain','nextstrain_ncov_north-america_metadata.tsv'), header=T, sep='\t', quote='')
+dat <- read.table(file.path(getwd(),'datasets','raw','NextStrain','nextstrain_ncov_north-america_metadata.tsv'), header=T, sep='\t', quote='')
 dat <- dat[dat$Location != '',]
 
-latlon_tips <- t(sapply(phy$tip.label,function(x) latlon_unique[latlon_unique$query==dat[dat$Strain==x,'Location'],c('lon','lat')]))
-
+latlon_tips <- t(sapply(phy$tip.label,function(x) latlon_unique[latlon_unique$query==dat[dat$Strain==x,'Location'],c('lon','lat')]))                       
 
 phy <- drop.tip(phy,phy$tip.label[!phy$tip.label %in% rownames(latlon_tips)])
 latlon <- matrix(as.numeric(latlon_tips[phy$tip.label,]),ncol=2)
 latlonrad <- DescTools:::DegToRad(latlon)
+                            
+latlon_internal <- t(sapply(unique(phy$edge[,1]), function(x) icosa:::surfacecentroid(matrix(as.numeric(latlon_tips[phangorn:::Descendants(phy,x,'tips')[[1]],]),ncol=2))))   
+latlon_internal_rad <- DescTools:::DegToRad(latlon_internal)
+latlon_internal_cartesian <- t(apply(latlon_internal_rad, 1, function(x) c(sin(x[1])*cos(x[2]), sin(x[1])*sin(x[2]), cos(x[1])))) 
+latlon_internal_cartesian_noise <- latlon_internal_cartesian + matrix(rnorm(nrow(latlon_internal_rad)*3,0,1e-4),ncol=3)
+latlon_internal_cartesian_noise <- t(apply(latlon_internal_cartesian_noise, 1, function(x) x / sqrt(sum(x^2))))                                   
       
 N <- nrow(latlon)
 NI <- phy$Nnode
@@ -46,7 +51,7 @@ phy$edge.length[phy$edge.length < time_min] <- time_min
   
 ratevec <- as.vector((tipdist/cophenetic(phy))[lower.tri(tipdist)])
                              
-sigma_prior <- sqrt(mean(ratevec[ratevec > 0])) * 5
+sigma_prior <- sqrt(mean(ratevec[ratevec > 0])) * 2.5
 
                              
 data <- list(N = N,
@@ -58,9 +63,9 @@ data <- list(N = N,
              ancestor = phy$edge[,1],
              sigma_prior = sigma_prior)
 
-#init <- list()
+init <- list(sigma_raw = 1, loc_anc = latlon_internal_cartesian_noise)
 
-#write_stan_json(init, file.path(output_prefix, 'inits.json'))
+write_stan_json(init, file.path(output_prefix, 'inits.json'))
 write_stan_json(data, file.path(output_prefix, 'data.json'))
 
 setwd(cmdstan_path())
