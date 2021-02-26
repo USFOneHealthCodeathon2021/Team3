@@ -1,19 +1,17 @@
 library(shiny)
-library(plotly)
-library(tidyverse)
-library(shinythemes)
 library(leaflet)
 library(leaflet.extras)
 library(dplyr)
+library(DT)
 
 # the ui object has all the information for the user-interface
 ui <-(
-  navbarPage("Viral Space Time", id="main",
-             tabPanel("Map", fluidPage(
+  navbarPage("Viral SpaceTime", id="main",
+             tabPanel("Interactive Map", fluidPage(
                fluidRow(
                  column(2, 
-                        absolutePanel(top = 20, left = 30,checkboxInput("phy", "Load Phy", TRUE)),
-                        absolutePanel(top = 50, left = 30,checkboxInput("heat", "Load Temp Anomoly", FALSE))
+                        absolutePanel(top = 20, left = 30,checkboxInput("phy", "Phylogenies", TRUE)),
+                        absolutePanel(top = 50, left = 30,checkboxInput("heat", "Temperature Anomoly", FALSE))
                         ),
                  column(10,
                         leafletOutput("mymap", height=700),
@@ -21,27 +19,27 @@ ui <-(
                         )
                )
              )),
-             tabPanel("Overview",includeMarkdown("readme.md")))
+             tabPanel("Phylogenies Data", DT::dataTableOutput("phytable")),
+             tabPanel("About",includeMarkdown("app_readme.md"))
+             )
 )
 
 
 server <- function(input, output, session) {
   #import data
   data <- read.csv("datasets/curated/NOAAGlobalTemp/testdat.csv")
-  phydata <- read.csv("outputs/quick_alr/latlon_north_america_phy.csv")
-  #define the color pallate for the magnitidue of the earthquake
-  pal <- colorNumeric(
-    palette = c('blue', 'deep skyblue', 'cyan', 'orange red', 'red', 'dark red'),
-    domain = data$mag)
+  phydata <- read.csv("outputs/quick_alr/latlon_north_america_phy.csv", header=TRUE, stringsAsFactors=FALSE)
+  str(phydata)
   
-  
-  set_phy_color <- function(phyStr) {
-    def_color <- "blue"
-    if(phyStr == NULL) {
-      def_color <- "red"
-    }
-    return(def_color)
+  set_phy_color <- function(phyloc) {
+    phycolor <- "green"
+    # add logic
+    return(phycolor)
   }
+  
+  output$phytable = DT::renderDataTable({
+    DT::datatable(phydata, options = list(lengthMenu = c(5, 15, 25, 50, 100), pageLength = 15))
+  })
   
   output$mymap <- renderLeaflet({
     leaflet(data) %>% 
@@ -49,17 +47,14 @@ server <- function(input, output, session) {
       addProviderTiles("Esri.WorldImagery", group="Satellite Map") %>%
       addProviderTiles("CartoDB.DarkMatter", group="Dark Map") %>%
       addTiles(options = providerTileOptions(noWrap = FALSE), group="Street Map") %>%
-      #addCircles(data = data, lat = ~ LAT, lng = ~ LON, weight = 1, radius = 3, popup = ~as.character(mag), label = ~as.character(paste0("Temp Anomoly: ", sep = " ", mag)), color = ~pal(mag), fillOpacity = 0.5) %>%
-      #addCircles(data = phydata, lat = ~ lat, lng = ~ lon, weight = 1, radius = 3, popup = "test", label = "Test", color = "blue", fillOpacity = 0.5) %>%
       addLayersControl(baseGroups = c("Dark Map","Satellite Map","Street Map"), options = layersControlOptions(collapsed = TRUE))
-      #fitBounds(260, -23, 90, 80) 
   })
   
   observe({
     proxy <- leafletProxy("mymap", data = phydata)
     proxy %>% clearMarkers()
     if (input$phy) {
-      proxy %>% addCircles(data = phydata, lat = ~ lat, lng = ~lon, weight = 1, radius = 3, popup = ~as.character(loc), label = ~as.character(paste0("Phy: ", sep = " ", loc)), color = ~set_phy_color(loc), fillOpacity = 0.5)
+      proxy %>% addCircles(data = phydata, lat = ~lat, lng = ~lon, weight = 1, radius = 3, popup = ~as.character(loc), label = ~as.character(paste0("Phy: ", sep = " ", loc)), color = ~set_phy_color(loc), fillOpacity = 0.5)
       }
     else {
       proxy %>% clearShapes()

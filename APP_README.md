@@ -29,20 +29,3 @@ Linking geospatial datasets with viral evolution rates
 
 ## Results 
 
-
-
-## Running our App
-
-The following packages are required to run Viral SpaceTime:
-
-RStudio
-
-R-packages [available from CRAN repository]():
- * library(shiny)
- * library(leaflet)
- * library(leaflet.extras)
- * library(dplyr)
- * library(DT)
-
-Download and open the "app.R" file in RStudio. In the upper-right corner of RStudio, press the "Run App" button.
-
