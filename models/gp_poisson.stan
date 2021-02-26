@@ -1,4 +1,4 @@
-//gp_continuous
+//gp_poisson
 //https://mc-stan.org/docs/2_26/stan-users-guide/fit-gp-section.html
 functions {
   vector gp_pred_rng(matrix d2,
@@ -44,7 +44,8 @@ data {
   real<lower=0> prior_scale; // expected length-scale of GP; eg mean of distances
   int N2; // number of points to impute
   matrix[N2,N+N2] d2; // pre-computed distances between points to impute
-  vector<lower=0>[N] y; // counts. poisson distributed data
+  int y[N]; // counts. poisson distributed data
+  real<lower=0> prior_data_scale; //
 }
 parameters {
   real<lower=0> rho_raw; // length-scale of GP correlation
@@ -57,9 +58,9 @@ transformed parameters {
 }
 model {
   matrix[N,N] L
-    = cholesky_decompose(add_diag(square(alpha)
+    = cholesky_decompose(add_diag(square(alpha * prior_data_scale)
                                   * exp(-square(d) / (2 * square(rho))),
-                                  square(sigma)));
+                                  square(sigma * prior_data_scale)));
   rho_raw ~ inv_gamma(5, 5);
   alpha ~ std_normal();
   sigma ~ std_normal();
@@ -68,10 +69,11 @@ model {
   y ~ poisson_log(y_hat);
 }
 generated quantities {
-  vector[N2] f2 = gp_pred_rng(d2, y, alpha, rho, d, sigma);
+  vector[N2] f2 = gp_pred_rng(d2, y_hat, alpha * prior_data_scale, rho, d, sigma * prior_data_scale);
   vector[N2] y2_hat;
+  int y2[N2];
   for(n2 in 1:N2) {
-    y2_hat[n2] = normal_rng(f2[n2], sigma);
+    y2_hat[n2] = normal_rng(f2[n2], sigma * prior_data_scale);
     y2[n2] = poisson_log_rng(y2_hat[n2]);
   }
 }
