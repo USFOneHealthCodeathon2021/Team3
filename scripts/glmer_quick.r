@@ -9,6 +9,12 @@ phy_divergence <- drop.tip(phy_divergence, phy_divergence$tip.label[!phy_diverge
 
 rates <- phy_divergence$edge.length / phy_time$edge.length
 
+alllatlon$rate <- 0
+alllatlon$rate[1:length(phy_time$tip.label)] <- rates[1:length(phy_time$tip.label)]
+alllatlon$rate[(length(phy_time$tip.label)+2):nrow(alllatlon)] <- rates[(length(phy_time$tip.label)+1):(nrow(alllatlon)-1)] 
+
+write.table(alllatlon,file=file.path(getwd(),'outputs','quick_alr','latlon_north_america_phy_divergence_rate.txt'),sep='\t',quote=FALSE,row.names=FALSE)
+
 pdf(file.path(getwd(),'outputs','quick_alr','log_rates.pdf'))
 hist(log(rates),100,main='Log rate of evolution')
 dev.off()
