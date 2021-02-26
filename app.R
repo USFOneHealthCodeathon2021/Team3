@@ -9,12 +9,10 @@ library(sp)
 library(rgeos)
 library(rgdal)
 library(maptools)
-library(dplyr)
-library(leaflet)
 library(scales)
 library(readr)
-
-setwd("~/Documents/GitHub/janelledonglasan/Team3/")
+library(maps)
+library(mapproj)
 
 # the ui object has all the information for the user-interface
 ui <-(
@@ -25,7 +23,7 @@ ui <-(
                         absolutePanel(top = 20, left = 30,checkboxInput("phy", "Derivatives of NextStrain", TRUE)),
                         absolutePanel(top = 50, left = 30,checkboxInput("heat", "Temperature Anomoly", FALSE)),
                         absolutePanel(top = 80, left = 30,checkboxInput("popdens", "Population Density", FALSE)),
-                        absolutePanel(top = 120, left = 30,checkboxInput("pmlvl", "PM2.5 Levels", FALSE))
+                        absolutePanel(top = 110, left = 30,checkboxInput("pmlvl", "PM2.5 Levels", FALSE))
                  ),
                  column(10,
                         leafletOutput("mymap", height=700),
@@ -93,8 +91,7 @@ server <- function(input, output, session) {
   #import data
   data <- read.csv("datasets/curated/NOAAGlobalTemp/testdat.csv")
   phydata <- read.csv("outputs/quick_alr/latlon_north_america_phy.csv")
-  library(maps)
-  library(mapproj)
+
   dsn = "datasets/curated/census-app/"
   us.map <- readOGR(dsn = dsn, layer = "cb_2018_us_county_500k", stringsAsFactors = FALSE)
   ## Remove Alaska(2), Hawaii(15), Puerto Rico (72), Guam (66), Virgin Islands (78), American Samoa (60)
@@ -103,9 +100,6 @@ server <- function(input, output, session) {
   #                                        "64", "68", "70", "74"),]
 
 ave_popdens <- read_csv("datasets/curated/census-app/Average_Household_Size_and_Population_Density_-_County.csv")
-
-
-    
 
   # Merge spatial df with downloade ddata.
 
@@ -126,9 +120,6 @@ ave_popdens <- read_csv("datasets/curated/census-app/Average_Household_Size_and_
   
   #pmlvl <- merge(us.map, pm, by.x = "GEOID", by.y = "FIPs")
   
-  
-  
-  
   #define the legend for temp anomoly
   pal <- colorNumeric(
     palette = c('#0B00FF', '#75FB4C', '#FDFE01', '#EA4426'),
@@ -140,16 +131,28 @@ ave_popdens <- read_csv("datasets/curated/census-app/Average_Household_Size_and_
   
   output$mymap <- renderLeaflet({
     leaflet(data) %>% 
-      setView(lng = -99, lat = 32, zoom = 4)  %>%
-      addProviderTiles("CartoDB.DarkMatter", group="Dark Mapp") %>%
+    setView(lng = -99, lat = 32, zoom = 4)  %>%
+      addProviderTiles("Esri.WorldImagery", group="Satellite Map") %>%
       addProviderTiles("CartoDB.DarkMatter", group="Dark Map") %>%
-      addTiles(options = providerTileOptions(noWrap = FALSE), group="Dark Map") %>%
-      addLayersControl(baseGroups = c("Dark Map","Satellite Map"), options = layersControlOptions(collapsed = TRUE))
- 
+      addTiles(options = providerTileOptions(noWrap = FALSE), group="Street Map") %>%
+      addLayersControl(baseGroups = c("Dark Map","Satellite Map","Street Map"), options = layersControlOptions(collapsed = TRUE))
   })
   
-
-  
+  observe({
+    proxy <- leafletProxy("mymap", data = leafmap)
+    proxy %>% clearMarkers()  %>% clearControls()
+    if (input$popdens) {
+      proxy %>% clearMarkers() %>%
+        addPolygons(fillColor = ~pal1(B01001_calc_PopDensity), 
+                    fillOpacity = 0.8, 
+                    color = "#BDBDC3", 
+                    weight = 1,
+                    popup = popup_dat) %>%
+        leaflet::addLegend("bottomright", pal = pal1, values = ~B01001_calc_PopDensity)
+    }else{
+      proxy %>% clearShapes() %>% clearControls() 
+    }
+  })
   
   observe({
     proxy <- leafletProxy("mymap", data = phydata)
@@ -164,34 +167,15 @@ ave_popdens <- read_csv("datasets/curated/census-app/Average_Household_Size_and_
   
   observe({
     proxy <- leafletProxy("mymap", data = data)
-    proxy %>% clearMarkers() 
+    proxy %>% clearMarkers()  %>% clearControls() 
     if (input$heat) {
       proxy %>% addHeatmap(lng=~LON-270, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) %>%
         leaflet::addLegend("bottomright", pal = pal, values = ~mag)
     }
     else{
-      proxy %>% clearHeatmap() 
+      proxy %>% clearHeatmap()  %>% clearControls() 
     }
   })
-  
-  
-  observe({
-    proxy <- leafletProxy("mymap", data = leafmap)
-    proxy %>% clearMarkers()  %>% clearControls()
-    if (input$popdens) {
-    proxy %>% 
-        addTiles() %>%
-        addPolygons(fillColor = ~pal1(B01001_calc_PopDensity), 
-                    fillOpacity = 0.8, 
-                    color = "#BDBDC3", 
-                    weight = 1,
-                    popup = popup_dat) %>%
-        leaflet::addLegend("bottomright", pal = pal1, values = ~B01001_calc_PopDensity)
-    }else{
-      proxy %>% clearHeatmap() %>% clearControls()
-    }
-  })
-  
   
   
   observeEvent(input$resetMap, {
