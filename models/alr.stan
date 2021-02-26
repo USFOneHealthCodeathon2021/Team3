@@ -42,5 +42,5 @@ transformed parameters {
 model {
   sigma_raw ~ std_normal();
   for(n in 1:(N+NI-1))
-    d[n] ~ wrapped_cauchy(0, time[n] * sigma_prior * sigma_raw);
+    d[n] ~ wrapped_cauchy(0, sqrt(time[n]) * sigma_prior * sigma_raw);
 }
