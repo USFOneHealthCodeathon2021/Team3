@@ -13,26 +13,36 @@ library(scales)
 library(readr)
 library(maps)
 library(mapproj)
+library(cdlTools)
+library(blscrapeR)
 
 # the ui object has all the information for the user-interface
 ui <-(
-  navbarPage("Viral Space Time", id="main",
-             tabPanel("Interactive Map", fluidPage(
-               fluidRow(
-                 column(2, 
-                        absolutePanel(top = 20, left = 30,checkboxInput("phy", "Derivatives of NextStrain", TRUE)),
-                        absolutePanel(top = 50, left = 30,checkboxInput("temp", "Temperature Anomoly", FALSE)),
-                        absolutePanel(top = 80, left = 30,checkboxInput("popdens", "Population Density", FALSE)),
-                        absolutePanel(top = 110, left = 30,checkboxInput("poll", "Pollution levels (PM2.5)", FALSE)),
-                        absolutePanel(top = 140, left = 30,checkboxInput("predtemp","Predicted Temp. Anomoly", FALSE)),
-                        absolutePanel(top = 170, left = 30,checkboxInput("predpoll","Predicted Pollution", FALSE))
-                 ),
-                 column(10,
-                        leafletOutput("mymap", height=700),
-                        absolutePanel(top = 20, left = 90,  actionButton("resetMap", "Reset")),
-                 )
-               )
-             )),
+  navbarPage("Viral SpaceTime", id="main",
+             tabPanel("Interactive Map", 
+                      sidebarLayout(
+                        sidebarPanel(
+                          selectInput("selectedMapType", 
+                                      label = "Choose a dataset",
+                                      choices = c("Temperature Anomoly" = "heat",
+                                                  "Population Density" = "popdens", 
+                                                  "Pollution levels (PM2.5)" = "poll"),
+                                      selected = "Temperature Anomoly"),
+                          selectInput("selectedPredType", 
+                                      label = "Choose a prediction",
+                                      choices = c("Predicted Temp. Anomoly" = "predtemp",
+                                                  "Predicted Pollution" = "predpoll"),
+                                      selected = "Predicted Temp. Anomoly"),
+                          checkboxInput("phy", "Derivatives of NextStrain", TRUE),
+                          width=3
+                        ),
+                        mainPanel(
+                          leafletOutput("mymap", height=700),
+                          absolutePanel(top = 20, left = 90,  actionButton("resetMap", "Reset")),
+                          width=9
+                        )
+                      )
+             ),
              tabPanel("Phylogenies Data", DT::dataTableOutput("phytable")),
              tabPanel("Test",  sidebarLayout(
                
@@ -92,19 +102,12 @@ ui <-(
 server <- function(input, output, session) {
   #import data
   data <- read.csv("datasets/curated/NOAAGlobalTemp/testdat.csv")
-  phydata <- read.csv("outputs/quick_alr/latlon_north_america_phy.csv")
-  
+  phydata <- read.csv("outputs/quick_alr/latlon_north_america_phy_divergence_rate.csv")
   dsn = "datasets/curated/census-app/"
   us.map <- readOGR(dsn = dsn, layer = "cb_2018_us_county_500k", stringsAsFactors = FALSE)
-  ## Remove Alaska(2), Hawaii(15), Puerto Rico (72), Guam (66), Virgin Islands (78), American Samoa (60)
-  ##  Mariana Islands (69), Micronesia (64), Marshall Islands (68), Palau (70), Minor Islands (74)
-  #us.map <- us.map[!us.map$STATEFP %in% c("02", "15", "72", "66", "78", "60", "69",
-  #                                        "64", "68", "70", "74"),]
-  
   ave_popdens <- read_csv("datasets/curated/census-app/Average_Household_Size_and_Population_Density_-_County.csv")
   
   # Merge spatial df with downloade ddata.
-  
   leafmap <- merge(us.map, ave_popdens, by=c("GEOID")) 
   
   # Format popup data for leaflet map.
@@ -142,9 +145,7 @@ server <- function(input, output, session) {
   predpolltest <- merge(predpoll,county_map_data, by=c("lat","long"))
   
   predpoll <- read_csv("outputs/gp/gp_predictions_pollution.csv")
-  
 
-  
   
   #define the legend for temp anomoly
   pal <- colorNumeric(
@@ -154,9 +155,6 @@ server <- function(input, output, session) {
   output$phytable = DT::renderDataTable({
     DT::datatable(phydata, options = list(lengthMenu = c(5, 15, 25, 50, 100), pageLength = 15))
   })
-  
-  
-  
   
   output$mymap <- renderLeaflet({
     leaflet(data) %>% 
@@ -168,86 +166,74 @@ server <- function(input, output, session) {
   })
   
   observe({
-    proxy <- leafletProxy("mymap", data = leafmap)
-    proxy %>% clearMarkers()  %>% clearControls()
-    if (input$popdens) {
-      proxy %>% clearMarkers() %>%
+    leafmap <- leafletProxy("mymap", data = leafmap)
+    heatmap <- leafletProxy("mymap", data = data)
+    phymap <- leafletProxy("mymap", data = phydata)
+    pollmap <- leafletProxy("mymap", data = pm)
+    predtempmap <- leafletProxy("mymap", data = gp_predictions_NOAA)
+    predpollmap <- leafletProxy("mymap", data = predpoll)
+    
+    if (input$selectedPredType == 'predtemp') {
+      predtempmap %>% clearControls() %>% clearHeatmap() 
+      predtempmap %>% addHeatmap(lng=~LON, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) %>%
+        leaflet::addLegend("bottomright", pal = pal, values = ~mag)
+    } else if (input$selectedPredType == 'predpoll') {
+      predpollmap %>% clearControls() %>% clearHeatmap()
+      predpollmap %>% addHeatmap(lng=~lon, lat=~lat, intensity = ~pmlvl, blur =  65, max = 10, radius = 50) %>%
+        leaflet::addLegend("bottomright", pal = pal, values = ~pmlvl)
+    }
+   
+    
+    if (input$selectedMapType == "popdens") {
+      leafmap %>% clearControls() %>% clearHeatmap() %>%
         addPolygons(fillColor = ~pal1(B01001_calc_PopDensity), 
                     fillOpacity = 0.8, 
                     color = "#BDBDC3", 
                     weight = 1,
+                    group = "population",
                     popup = popup_dat) %>%
         leaflet::addLegend("bottomright", pal = pal1, values = ~B01001_calc_PopDensity)
-    }else{
-      proxy %>% clearShapes() %>% clearControls() 
-    }
-  })
-  
-  observe({
-    proxy <- leafletProxy("mymap", data = phydata)
-    proxy %>% clearMarkers()
-    if (input$phy) {
-      proxy %>% addCircles(data = phydata, lat = ~lat, lng = ~lon, weight = 3, radius = 5, popup = ~as.character(loc), label = ~as.character(paste0("Strain: ", sep = " ", loc)), color = "white", fillOpacity = 0.5)
-    }
-    else {
-      proxy %>% clearShapes()
-    }
-  })
-  
-  observe({
-    proxy <- leafletProxy("mymap", data = data)
-    proxy %>% clearMarkers()  %>% clearControls() 
-    if (input$temp) {
-      proxy %>% addHeatmap(lng=~LON-270, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) %>%
+      if (input$selectedPredType == 'predtemp') {
+        predtempmap %>% addHeatmap(lng=~LON, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) %>%
+          leaflet::addLegend("bottomright", pal = pal, values = ~mag)
+      } else if (input$selectedPredType == 'predpoll') {
+        predpollmap %>% addHeatmap(lng=~lon, lat=~lat, intensity = ~pmlvl, blur =  65, max = 10, radius = 50) %>%
+          leaflet::addLegend("bottomright", pal = pal, values = ~pmlvl)
+      }
+    } else  if (input$selectedMapType == "heat") {
+      heatmap %>% clearControls() %>% clearShapes()
+      heatmap %>% addHeatmap(lng=~LON-270, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) %>%
         leaflet::addLegend("bottomright", pal = pal, values = ~mag)
-    }
-    else{
-      proxy %>% clearHeatmap()  %>% clearControls() 
-    }
-  })
-  
-  
-  observe({
-    proxy <- leafletProxy("mymap", data = pm)
-    proxy %>% clearMarkers()  %>% clearControls()
-    if (input$poll) {
-      proxy %>% clearMarkers() %>%
-        addPolygons(fillColor = ~pal1(pmlvl), 
-                    fillOpacity = 0.8, 
-                    color = "#BDBDC3", 
-                    weight = 1,
+      if (input$selectedPredType == 'predtemp') {
+        predtempmap %>% addHeatmap(lng=~LON, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) 
+      } else if (input$selectedPredType == 'predpoll') {
+        predpollmap %>% addHeatmap(lng=~lon, lat=~lat, intensity = ~pmlvl, blur =  65, max = 10, radius = 50) %>%
+          leaflet::addLegend("bottomright", pal = pal, values = ~pmlvl)
+      }
+    } else if ( input$selectedMapType == "poll") {
+      pollmap %>% clearControls() %>% clearShapes()%>% clearHeatmap() %>%
+        addPolygons(fillColor = ~pal1(pmlvl),
+                   fillOpacity = 0.8,
+                   color = "#BDBDC3",
+                     weight = 1,
                     popup = popup_dat2) %>%
         leaflet::addLegend("bottomright", pal = pal1, values = ~pmlvl)
-    }else{
-      proxy %>% clearShapes() %>% clearControls() 
+      if (input$selectedPredType == 'predtemp') {
+        predtempmap %>% addHeatmap(lng=~LON, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) %>%
+          leaflet::addLegend("bottomright", pal = pal, values = ~mag)
+      } else if (input$selectedPredType == 'predpoll') {
+        predpollmap %>% addHeatmap(lng=~lon, lat=~lat, intensity = ~pmlvl, blur =  65, max = 10, radius = 50) %>%
+          leaflet::addLegend("bottomright", pal = pal, values = ~pmlvl)
+      }
+    }else {
+      phymap %>% clearShapes()
+    }
+      
+    
+    if (input$phy) {
+      phymap %>% addCircles(data = phydata, lat = ~lat, lng = ~lon, weight = 3, radius = ~sqrt(rate)*1000, popup = ~as.character(loc), label = ~as.character(paste0("Strain: ", sep = " ", loc)), color = "white", fillOpacity = 0.5)
     }
   })
-  
-  observe({
-    proxy <- leafletProxy("mymap", data = gp_predictions_NOAA)
-    proxy %>% clearMarkers()  %>% clearControls() 
-    if (input$predtemp) {
-      proxy %>% addHeatmap(lng=~LON-270, lat=~LAT, intensity = ~mag, blur =  65, max = 10, radius = 50) %>%
-        leaflet::addLegend("bottomright", pal = pal, values = ~mag)
-    }
-    else{
-      proxy %>% clearHeatmap()  %>% clearControls() 
-    }
-  })
-  
-  
-  observe({
-    proxy <- leafletProxy("mymap", data = predpoll)
-    proxy %>% clearMarkers()  %>% clearControls() 
-    if (input$predpoll) {
-      proxy %>% addHeatmap(lng=~lon-270, lat=~lat, intensity = ~pmlvl, blur =  65, max = 10, radius = 50) %>%
-        leaflet::addLegend("bottomright", pal = pal, values = ~pmlvl)
-    }
-    else{
-      proxy %>% clearHeatmap()  %>% clearControls() 
-    }
-  })
-  
   
   
   observeEvent(input$resetMap, {
