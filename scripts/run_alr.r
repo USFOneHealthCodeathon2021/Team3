@@ -14,13 +14,13 @@ sampling_command <- paste(paste0('./', model_name),
                 paste0('file=', file.path(output_prefix, 'samples.txt')),
                 paste0('refresh=', 100),
                 'method=sample',
-                'adapt delta=0.95',
+                'adapt delta=0.8',
                 'algorithm=hmc',
                 #'stepsize=0.01',
                 'engine=nuts',
-                'max_depth=10',
+                'max_depth=12',
                 'num_warmup=1000',
-                'num_samples=200',
+                'num_samples=500',
                 sep=' ')
       
 phy <- read.tree(file.path(getwd(),'outputs','quick_alr','phy_filtered.newick'))
@@ -39,10 +39,15 @@ N <- nrow(latlon)
 NI <- phy$Nnode
 
 tipdist <- geosphere:::distm(latlon, fun = function(x,y) geosphere:::distGeo(x,y,a=1))
+
+time_min <- exp(mean(log(phy$edge.length[phy$edge.length > 0] )) - 3 * sd(log(phy$edge.length[phy$edge.length > 0])))                            
+phy$edge.length[phy$edge.length < time_min] <- time_min 
+
+  
 ratevec <- as.vector((tipdist/cophenetic(phy))[lower.tri(tipdist)])
                              
-sigma_prior <- mean(ratevec[!is.infinite(ratevec) & !is.na(ratevec)]) * 10
-                             
+sigma_prior <- sqrt(mean(ratevec[ratevec > 0])) * 5
+
                              
 data <- list(N = N,
              NI = NI,
@@ -69,6 +74,8 @@ system(sampling_command)
 setwd(wd)
 stanfit <- read_stan_csv(file.path(output_prefix, 'samples.txt'))
 check_hmc_diagnostics(stanfit)
+                             
+summary(stanfit,pars='sigma_raw')
                              
 locations_cartesian <- apply(extract(stanfit,pars='loc_anc')[[1]],c(2,3),mean)
 locations_radians <- t(apply(locations_cartesian, 1, function(x) c(phi=atan2(x[2],x[1]),theta=atan2(sqrt(sum(x[1:2]^2)),x[3]))))
