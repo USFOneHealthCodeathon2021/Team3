@@ -21,8 +21,58 @@ ui <-(
                  )
                )
              )),
-             tabPanel("Overview",includeMarkdown("readme.md")))
-)
+             tabPanel("Overview",includeMarkdown("readme.md")),
+             tabPanel("Test",  sidebarLayout(
+               
+               # Sidebar panel for inputs ----
+               sidebarPanel(
+                 
+                 # Input: Select a file ----
+                 fileInput("file1", "Choose CSV File",
+                           multiple = FALSE,
+                           accept = c("text/csv",
+                                      "text/comma-separated-values,text/plain",
+                                      ".csv")),
+                 
+                 # Horizontal line ----
+                 tags$hr(),
+                 
+                 # Input: Checkbox if file has header ----
+                 checkboxInput("header", "Header", TRUE),
+                 
+                 # Input: Select separator ----
+                 radioButtons("sep", "Separator",
+                              choices = c(Comma = ",",
+                                          Semicolon = ";",
+                                          Tab = "\t"),
+                              selected = ","),
+                 
+                 # Input: Select quotes ----
+                 radioButtons("quote", "Quote",
+                              choices = c(None = "",
+                                          "Double Quote" = '"',
+                                          "Single Quote" = "'"),
+                              selected = '"'),
+                 
+                 # Horizontal line ----
+                 tags$hr(),
+                 
+                 # Input: Select number of rows to display ----
+                 radioButtons("disp", "Display",
+                              choices = c(Head = "head",
+                                          All = "all"),
+                              selected = "head")
+                 
+               ),
+               
+               # Main panel for displaying outputs ----
+               mainPanel(
+                 
+                 # Output: Data file ----
+                 tableOutput("contents")
+                 
+               )))
+))
 
 
 server <- function(input, output, session) {
@@ -35,7 +85,7 @@ server <- function(input, output, session) {
     domain = data$mag)
   
   
-
+  
   
   output$mymap <- renderLeaflet({
     leaflet(data) %>% 
@@ -53,7 +103,7 @@ server <- function(input, output, session) {
     proxy <- leafletProxy("mymap", data = phydata)
     proxy %>% clearMarkers()
     if (input$phy) {
-      proxy %>% addCircles(data = phydata, lat = ~lat, lng = ~lon, weight = 1, radius = 3, popup = ~as.character(loc), label = ~as.character(paste0("Strain: ", sep = " ", loc)), color = "blue", fillOpacity = 0.5)
+      proxy %>% addCircles(data = phydata, lat = ~lat, lng = ~lon, weight = 1, radius = 3, popup = ~as.character(loc), label = ~as.character(paste0("Strain: ", sep = " ", loc)), color = "white", fillOpacity = 0.5)
     }
     else {
       proxy %>% clearShapes()
