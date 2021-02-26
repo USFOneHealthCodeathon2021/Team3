@@ -37,7 +37,7 @@ The following packages are required to run Viral SpaceTime:
 
 RStudio
 
-R-packages [available from CRAN repository]():
+R-packages:
  * library(shiny)
  * library(leaflet)
  * library(leaflet.extras)
