@@ -46,3 +46,10 @@ R-packages:
 
 Download and open the "app.R" file in RStudio. In the upper-right corner of RStudio, press the "Run App" button.
 
+![RStudio screenshot](https://github.com/USFOneHealthCodeathon2021/Team3/blob/main/images/interactive_map_1.png)
+
+![RStudio screenshot](https://github.com/USFOneHealthCodeathon2021/Team3/blob/main/images/interactive_map_2.png)
+
+![RStudio screenshot](https://github.com/USFOneHealthCodeathon2021/Team3/blob/main/images/phy_data.png)
+
+![RStudio screenshot](https://github.com/USFOneHealthCodeathon2021/Team3/blob/main/images/test.png)
