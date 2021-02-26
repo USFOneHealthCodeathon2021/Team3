@@ -72,3 +72,5 @@ y2 <- apply(extract(stanfit, pars='y2')[[1]],2,mean)
 noaa_predictions <- cbind(y2,predictLatLon)
                        
 write.table(noaa_predictions, file=file.path(output_prefix,'gp_predictions_NOAA.txt'), sep='\t', quote=FALSE, row.names=FALSE)
+
+                   

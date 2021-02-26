@@ -1,0 +1,61 @@
+install.packages('rinat')
+library(rinat)
+
+Bats <- get_inat_obs(taxon_name = "Chiroptera", place_id=97394, geo=TRUE, maxresults = 10000, year = 2020)
+
+View(Bats)
+Bats_filtered <- Bats[,c('longitude','latitude')]
+
+####### block from https://stackoverflow.com/questions/13316185/r-convert-zipcode-or-lat-long-to-county
+library(sp)
+library(maps)
+library(maptools)
+
+# The single argument to this function, pointsDF, is a data.frame in which:
+#   - column 1 contains the longitude in degrees (negative in the US)
+#   - column 2 contains the latitude in degrees
+
+latlong2county <- function(pointsDF) {
+  # Prepare SpatialPolygons object with one SpatialPolygon
+  # per county
+  counties <- map('county', fill=TRUE, col="transparent", plot=FALSE)
+  IDs <- sapply(strsplit(counties$names, ":"), function(x) x[1])
+  counties_sp <- map2SpatialPolygons(counties, IDs=IDs,
+                                     proj4string=CRS("+proj=longlat +datum=WGS84"))
+  
+  # Convert pointsDF to a SpatialPoints object 
+  pointsSP <- SpatialPoints(pointsDF, 
+                            proj4string=CRS("+proj=longlat +datum=WGS84"))
+  
+  
+  # Use 'over' to get _indices_ of the Polygons object containing each point 
+  indices <- over(pointsSP, counties_sp)
+  
+  # Return the county names of the Polygons object containing each point
+  countyNames <- sapply(counties_sp@polygons, function(x) x@ID)
+  countyNames[indices]
+}
+###########
+
+batcounty <- latlong2county(Bats_filtered[apply(Bats_filtered,1,function(x) !any(is.na(x))),])
+
+agdat <- sapply(unique(batcounty), function(x) sum(batcounty == x, na.rm = TRUE))
+
+## need to then aggregate by county and then find county centroid GPS location for input to model
+
+## All experimental past here ##
+agdat_df <- as.data.frame(agdat)
+
+agloc <- rownames(agdat_df)
+
+county_names_df <- as.data.frame(agloc)
+
+library(tidyr)
+
+State_County_df <-county_names_df %>% separate(agloc, c("State","County"), sep= ",")
+
+library(tmaptools)
+
+County_Coords<-geocode_OSM(State_County_df$County, State_County_df$State, return.first.only = TRUE, as.data.frame = TRUE, server = "https://nominatim.openstreetmap.org")
+
+  ## Still don't think it worked properly but I'm out of time checking right now ##
