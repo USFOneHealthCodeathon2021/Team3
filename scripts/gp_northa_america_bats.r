@@ -74,8 +74,8 @@ bats_predictions <- cbind(y2,predictLatLon)
                        
 write.table(bats_predictions, file=file.path(output_prefix, paste0('gp_predictions_',dataset_name,'.txt')), sep='\t', quote=FALSE, row.names=FALSE)
                         
-y_log_predicted <- apply(extract(stanfit, pars='y2')[[1]],2,mean)
-bats_predictions <- cbind(y2,predictLatLon)
+y_log_predicted <- apply(extract(stanfit, pars='y2_hat')[[1]],2,mean)
+bats_predictions <- cbind(exp(y_log_predicted),predictLatLon)
                        
-write.table(bats_predictions, file=file.path(output_prefix, paste0('gp_predictions_',dataset_name,'.txt')), sep='\t', quote=FALSE, row.names=FALSE)
+write.table(bats_predictions, file=file.path(output_prefix, paste0('gp_predictions_density_',dataset_name,'.txt')), sep='\t', quote=FALSE, row.names=FALSE)
 
