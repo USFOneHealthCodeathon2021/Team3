@@ -25,6 +25,7 @@ Linking geospatial datasets with viral evolution rates
 - inla/gp model conditioned on geographic dataset, with imputed values at locations corresponding to the estimated location of phylogenetic edges
 
 
+![Flowchart](https://github.com/USFOneHealthCodeathon2021/Team3/blob/main/images/flowchart-v1.pdf)
 
 
 ## Results 
