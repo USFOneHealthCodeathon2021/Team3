@@ -121,10 +121,13 @@ ave_popdens <- read_csv("datasets/curated/census-app/Average_Household_Size_and_
   pal1 <- colorQuantile("YlOrRd", NULL, n = 9)
   
   
-  subpm <- read_csv("datasets/curated/CDC_PM2.5_Concentrations/ave-county-level-pm2.5-2014.csv")
-
-
-  subpm$FIPs
+  pm <- read_csv("datasets/curated/CDC_PM2.5_Concentrations/ave-county-level-pm2.5-2014.csv")
+#sub[subpm$state Daily_County_Level_PM2_5_Concentrations_2001_2014$statefips/]
+  
+  #pmlvl <- merge(us.map, pm, by.x = "GEOID", by.y = "FIPs")
+  
+  
+  
   
   #define the legend for temp anomoly
   pal <- colorNumeric(
@@ -189,16 +192,6 @@ ave_popdens <- read_csv("datasets/curated/census-app/Average_Household_Size_and_
     }
   })
   
-  
-  observe({
-    proxy <- leafletProxy("mymap", data = ave_county_pm)
-    proxy %>% clearMarkers()  %>% clearControls()
-    if (input$pmlvl) {
-    proxy %>% addCircles(data = ave_county_pm, lat = ~lat, lng = ~lon,label = ,   weight = 1, radius = 3, color = "white", fillOpacity = 0.5)
-    }else{
-      proxy %>% clearControls()
-    }
-  })
   
   
   observeEvent(input$resetMap, {
