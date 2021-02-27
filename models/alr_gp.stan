@@ -22,19 +22,27 @@ functions {
     for(n in 1:N) d[n] = atan2(y[n], x[n]);
     return(d);
   }
-  matrix fill_dist(vector d, int N) {
-    matrix[N,N] d_mat;
+  matrix fill_sym(vector lt, int N, real c) {
+    matrix[N,N] s_mat;
     int iter = 1;
     for(j in 1:(N-1)) {
-      d_mat[j,j] = 0;
+      s_mat[j,j] = c;
       for(i in (j+1):N) {
-        d_mat[i,j] = d[iter];
-        d_mat[j,i] = d[iter];
+        s_mat[i,j] = lt[iter];
+        s_mat[j,i] = lt[iter];
         iter += 1;
       }
     }
-    d_mat[N,N] = 0;
-    return(d_mat);
+    s_mat[N,N] = c;
+    return(s_mat);
+  }
+  matrix gp_L(vector d, real alpha, real rho, real sigma) {
+    int N = cols(d);
+    matrix[N,N] L 
+      = cholesky_decompose(
+          fill_sym(square(alpha_gp) * exp(-square(d) / (2 * square(rho))),
+                   N,
+                   square(alpha_gp) + square(sigma)));
   }
 }
 data {
@@ -64,17 +72,20 @@ transformed data {
   vector[NN-1] ltime = log(time);
   int dInd1[ND]; // indices to map pairwise distances
   int dInd2[ND];
-  int dIndEdge[NN-1]; indices mapping phylogenetic edges to the pairwise distance vector 
+  int dInd[N,N];
+  int dEdgeInd[NN-1]; // indices to select distances between adjacent nodes
   int iter = 1;
   for(j in 1:(N-1)) {
     for(i in (j+1):N) {
       dInd1[iter] = i;
       dInd2[iter] = j;
+      dInd[i,j] = iter;
+      dInd[j,i] = iter;
       iter += 1;
     }
   }
   for(n in 1:(NN-1)) {
-    dIndEdge[n] = ; // not sure how to do this yet d_edge = dist_sphere(phi[ancestor], phi[self], theta[ancestor], theta[self]);
+    dEdgeInd[n] = dInd[self[n], ancestor[n]];
   }
 }
 parameters {
@@ -92,7 +103,6 @@ parameters {
 }
 transformed parameters {
   vector[N] y = append_row(y_obs, y_pred); // observed and estimated values of covariates
-  vector[N] s = alpha_s + beta_s * y; // logistic likelihood of sampling a virus at a given location
   vector[N] phi; // tip/node longitudes in radians
   vector[N] theta; // tip/node latitudes in radians
   real<lower=0> rho = rho_raw * rho_prior; // gp length scale
@@ -106,20 +116,18 @@ transformed parameters {
   theta[(NN+1):N] = theta_y;
 }
 model {
-  matrix[N,N] d = fill_dist(dist_sphere(phi[dInd1], phi[dInd2], theta[dInd1], theta[dInd2]), N); pairwise geographic distances of all but geocode estimates
+  vector[ND] d = dist_sphere(phi[dInd1], phi[dInd2], theta[dInd1], theta[dInd2]); pairwise geographic distances of all but geocode estimates
   vector[NT] d_err = dist_sphere(phi[1:NT], phi_mu, theta[1:NT], theta_mu); // geographic distances between geocoded and estimated tip locations
-  vector[NN-1] d_edge; // geographic distances between adjacent tips/nodes
-  matrix[N,N] L_y = cholesky_decompose(gp_kernel()); // fill in rest of gp code (estimate sigma)
-  d_edge = __;
+  matrix[N,N] L_y = gp_L(d, alpha_gp, rho, sigma_gp); 
   sigma_d_raw ~ std_normal();
   beta_s ~ std_normal();
   beta_mut ~ std_normal();
   rho_raw ~ inv_gamma(5, 5);
   alpha_gp_raw ~ std_normal();
   sigma_gp_raw ~ std_normal();
-  d_err ~ von_mises(0, kappa);
-  d_edge ~ wrapped_cauchy(sigma_d_prior * sigma_d_raw * stime); 
-  present ~ bernoulli_logit(s); 
-  y ~ multi_normal_cholesky(alpha_y, L_y); // gaussian process fit to observed covariates and predict values at node locations
+  d_err ~ von_mises(0, kappa); // actual tip locations constrained within geocoding uncertainty
+  d[dEdgeInd] ~ wrapped_cauchy(sigma_d_prior * sigma_d_raw * stime); // ancestral node locations shrink toward location of direct descendants
+  y ~ multi_normal_cholesky(alpha_y, L_y); // gaussian process fit to observed covariates and predicts values at tip/node locations
+  present ~ bernoulli_logit(alpha_s + beta_s * y); // likelihood of sampling a virus at a given location as function of covariates
   mut ~ poisson_log_glm(append_col(ltime, y[NY+self]), alpha_mut, beta_mut); // number of mutations as a function of time and covariates
 }
