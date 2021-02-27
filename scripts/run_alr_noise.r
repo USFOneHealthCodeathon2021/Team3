@@ -18,7 +18,7 @@ sampling_command <- paste(paste0('./', model_name),
                 'algorithm=hmc',
                 #'stepsize=0.01',
                 'engine=nuts',
-                'max_depth=12',
+                'max_depth=10',
                 'num_warmup=1000',
                 'num_samples=500',
                 sep=' ')
