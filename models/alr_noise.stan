@@ -5,8 +5,9 @@ functions {
            - log(cosh(gamma) - cos(y-mu))
            - log(2 * pi()));
   }
-  real dist_sphere(phi1, phi2, theta1, theta2) {
+  real dist_sphere(real phi1, real phi2, real theta1, real theta2) {
     real deltaPhi = phi1 - phi2;
+    real d;
     d = atan2(sqrt(square(cos(theta2) * sin(deltaPhi))
                    + square(cos(theta1) * sin(theta2)
                             - sin(theta1) * cos(theta2) * cos(deltaPhi))),
