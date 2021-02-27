@@ -11,7 +11,7 @@ sampling_command <- paste(paste0('./', model_name),
                 paste0('data file=', file.path(output_prefix, paste0(model_name, '_data.json'))),
                 paste0('init=', file.path(output_prefix, paste0(model_name, '_inits.json'))),
                 'output',
-                paste0('file=', file.path(output_prefix, paste0(model_name, 'samples.txt'))),
+                paste0('file=', file.path(output_prefix, paste0(model_name, '_samples.txt'))),
                 paste0('refresh=', 100),
                 'method=sample',
                 'adapt delta=0.8',
@@ -24,7 +24,7 @@ sampling_command <- paste(paste0('./', model_name),
                 sep=' ')
 
 
-phy <- read.tree(file.path(wd,'datasets/raw/NextStrain/nextstrain_ncov_north-america_timetree.nwk'))
+phy <- collapse.singles(read.tree(file.path(wd,'datasets/raw/NextStrain/nextstrain_ncov_north-america_timetree.nwk')))
 dat <- read.table(file.path(wd,'datasets/raw/NextStrain/nextstrain_ncov_north-america_metadata.tsv'),header=T, sep='\t', quote='')
 
 dat$location_combined <- apply(dat[,c('Location','Admin.Division','Country')], 1, function(x) paste(x,collapse=', '))
@@ -46,11 +46,13 @@ phy <- read.tree(file.path(output_prefix, 'nextstrain_ncov_north-america_timetre
 
 
 latlon_mat <- matrix(as.numeric(latlon_tips[phy$tip.label,]),ncol=3)
-latlonrad <- DescTools:::DegToRad(latlon_mat[,1:2])
-                            
+latlonrad <- DescTools:::DegToRad(latlon_mat[,1:2]) 
+latlonrad[,2] <- (pi/2) - latlonrad[,2] ## geographic degrees go from -90 to +90 starting at equator, math starts at top and goes 0-pi
+                        
 latlon_internal_guess <- t(sapply(unique(phy$edge[,1]), function(x) icosa:::surfacecentroid(matrix(as.numeric(latlon_tips[phangorn:::Descendants(phy,x,'tips')[[1]],1:2]),ncol=2))))   
 latlon_internal_guess_rad <- DescTools:::DegToRad(latlon_internal_guess)
-
+latlon_internal_guess_rad[,2] <- (pi/2) - latlon_internal_guess_rad[,2]
+                                  
 latlon_inits_rad <- rbind(latlonrad, latlon_internal_guess_rad)
 latlon_inits_cartesian <- t(apply(latlon_inits_rad, 1, function(x) c(sin(x[1])*cos(x[2]), sin(x[1])*sin(x[2]), cos(x[1])))) 
 latlon_inits_cartesian_noise <- latlon_inits_cartesian + matrix(rnorm(nrow(latlon_inits_cartesian)*3,0,1e-4),ncol=3)
@@ -99,12 +101,15 @@ check_hmc_diagnostics(stanfit)
                              
 summary(stanfit,pars='sigma_raw')
                              
-locations_cartesian <- apply(extract(stanfit,pars='loc_anc')[[1]],c(2,3),mean)
+locations_cartesian <- apply(extract(stanfit,pars='loc')[[1]],c(2,3),mean)
 locations_radians <- t(apply(locations_cartesian, 1, function(x) c(phi=atan2(x[2],x[1]),theta=atan2(sqrt(sum(x[1:2]^2)),x[3]))))
 locations_degrees <- locations_radians / pi * 180
-locations_degrees[,2] <- locations_degrees[,2] - 90
+locations_degrees[,2] <- 90 - locations_degrees[,2]
 colnames(locations_degrees) <- c('lon','lat')
 rownames(locations_degrees) <- c(rownames(latlon_tips), paste0('ancestor_',(N+1):(N+NI)))                             
 write.table(locations_degrees, file=file.path(output_prefix,'latlon_noise_tip_and_ancestors_north_america.txt'),sep='\t',quote=FALSE,row.names=FALSE)
-                             
+
+locdeg <- as.data.frame(locations_degrees)
+sp:::coordinates(locdeg) <- ~lon+lat
+leaflet(locdeg) %>% addMarkers() %>% addTiles()
 sigma <- mean(extract(stanfit,pars='sigma_raw')[[1]])
