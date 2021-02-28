@@ -81,7 +81,7 @@ data <- list(N = N,
              sigma_prior = sigma_prior,
              kappa = latlon_mat[,3])
 
-init <- list(sigma_raw = 1, loc_anc = latlon_inits_cartesian_noise)
+init <- list(sigma_raw = 1, locvec = latlon_inits_cartesian_noise)
 
 write_stan_json(init, file.path(output_prefix, paste0(model_name, '_inits.json')))
 write_stan_json(data, file.path(output_prefix, paste0(model_name, '_data.json')))
@@ -102,7 +102,7 @@ summary(stanfit,pars='sigma_raw')
                              
                              
 locations_cartesian_tensor <- extract(stanfit,pars='loc')[[1]]
-locations_cartesian <- t(apply(locations_cartesian_tensor, 2, function(x) Directional:::vmf.mle(x)$mu))                         
+locations_cartesian <- t(apply(locations_cartesian_tensor, 3, function(x) Directional:::vmf.mle(x)$mu))                         
 locations_radians <- t(apply(locations_cartesian, 1, function(x) c(phi=atan2(x[2],x[1]),theta=atan2(sqrt(sum(x[1:2]^2)),x[3]))))
 locations_degrees <- locations_radians / pi * 180
 locations_degrees[,2] <- 90 - locations_degrees[,2]
